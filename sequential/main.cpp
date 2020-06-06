@@ -68,14 +68,10 @@ int main(int argc, const char * argv[]) {
     */
     for (int i = 1; i < M - 1; i++) {
         table[i][0] = 100.0;
-    }
-    for (int i = 1; i < M - 1; i++) {
         table[i][N - 1] = 100.0;
     }
     for (int j = 0; j < N; j++) {
         table[M - 1][j] = 100.0;
-    }
-    for (int j = 0; j < N; j++) {
         table[0][j] = 0.0;
     }
 
