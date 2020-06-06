@@ -113,7 +113,7 @@ int main(int argc, const char * argv[]) {
         // Calculate new values
         for (int i = 1; i < M - 1; i++) {
             for (int j = 1; j < N - 1; j++) {
-                table[i][j] = (tableOld[i - 1][j] + tableOld[i + 1][j] + tableOld[i][j - 1] + tableOld[i][j + 1]) / 4.0;
+                table[i][j] = 0.5 * ((tableOld[i + 1][j] + tableOld[i - 1][j]) / (1 + pow(w / h, 2.0)) + ((tableOld[i][j + 1] + tableOld[i][j - 1]) / (1 + pow(h / w, 2.0))));
             }
         }
 
