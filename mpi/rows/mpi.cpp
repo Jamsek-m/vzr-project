@@ -5,7 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#define MAXITERS 10
+#define MAXITERS 100
 
 
 double ** initTable(int m, int n) {
@@ -58,21 +58,6 @@ void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w
     }
 }
 
-// double count_neighbours_mpi(double** b, double* rt, double *rb, int i, int j, int w, int h)
-// {
-// 	// int sum = 0;
-//     // sum = sum + rt[i];
-//     // sum = sum + rb[i];
-//     // sum = sum + b[i][j-1];
-//     // sum = sum + b[i][j+1];
-
-//     double sum = 0.5 * ((rb[j] + rt[j])/(1 + (w/h)*(w/h)) + (b[i][j-1] + b[i][j+1])/(1 + (h/w)*(h/w)));
-
-
-
-// 	return sum;
-// }
-
 void board_update(double*** b, double*** bn)
 {
 	double** bt;
@@ -95,7 +80,7 @@ int main(int argc, char** argv)
     initArgs(argc, argv, &W, &H, &w, &h, &EPSILON);
     int M = H / h;
     int N = W / w;
-    double localDiff;
+    double localDiff = 0;
     double diff = 1.0;
 
     double * boardptr = NULL;
@@ -116,7 +101,7 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
-	// if (myid == 0){
+	if (myid == 0){
         // Initialize table
         board = initTable(M, N);
         boardptr = *board;
@@ -147,8 +132,7 @@ int main(int argc, char** argv)
             }
         }
         print2DArray(board, M, N);
-    // }
-    MPI_Barrier(MPI_COMM_WORLD);
+    }
 
     
     // divide work
@@ -180,60 +164,21 @@ int main(int argc, char** argv)
             // ptr to send data, send data size, send data type, receiver, message tag,
             // ptr to received data, received data size, recevied data type, sender, message tag,
             // communicator, status
-            printf("\nMPI process %d received value %d from rank %d, with tag %d and error code %d.\n", 
-               myid,
-               myrow_bot,
-               status.MPI_SOURCE,
-               status.MPI_TAG,
-               status.MPI_ERROR);
-            for (j = 0; j < N; j++){
-                printf("%f, ", myrow_bot[j]);
-            }
             MPI_Sendrecv(myboard[myrows - 1], N, MPI_DOUBLE, (myid + 1) % procs, 0,
                         myrow_top, N, MPI_DOUBLE, (myid + procs - 1) % procs, 0, 
                         MPI_COMM_WORLD, &status);
-            printf("\nMPI process %d received value %d from rank %d, with tag %d and error code %d.\n", 
-               myid,
-               myrow_top,
-               status.MPI_SOURCE,
-               status.MPI_TAG,
-               status.MPI_ERROR);
-            for (j = 0; j < N; j++){
-                printf("%f, ", myrow_top[j]);
-            }
         }
 		
         if (myid == 0 && myid < (procs - 1)){
             MPI_Sendrecv(myboard[myrows - 1], N, MPI_DOUBLE, (myid + 1) % procs, 0,
                         myrow_bot, N, MPI_DOUBLE, (myid + 1) % procs, 1, 
                         MPI_COMM_WORLD, &status);
-            printf("\nMPI process %d received value %d from rank %d, with tag %d and error code %d.\n", 
-               myid,
-               myrow_bot,
-               status.MPI_SOURCE,
-               status.MPI_TAG,
-               status.MPI_ERROR);
-            for (j = 0; j < N; j++){
-                printf("%f, ", myrow_bot[j]);
-            }
         }    
 
         if (myid > 0 && myid == (procs - 1)){
             MPI_Sendrecv(myboard[0], N, MPI_DOUBLE, (myid - 1) % procs, 1,
                         myrow_bot, N, MPI_DOUBLE, (myid - 1) % procs, 0,
-                        MPI_COMM_WORLD, &status);//MPI_STATUSES_IGNORE
-            // ptr to send data, send data size, send data type, receiver, message tag,
-            // ptr to received data, received data size, recevied data type, sender, message tag,
-            // communicator, status
-            printf("\nMPI process %d received value %d from rank %d, with tag %d and error code %d.\n", 
-               myid,
-               myrow_bot,
-               status.MPI_SOURCE,
-               status.MPI_TAG,
-               status.MPI_ERROR);
-            for (j = 0; j < N; j++){
-                printf("%f, ", myrow_bot[j]);
-            }
+                        MPI_COMM_WORLD, &status);
         }   
 
 		// do the computation of my part
@@ -241,34 +186,50 @@ int main(int argc, char** argv)
             for (i = 0; i < myrows; i++){
                 for (j = 1; j < (N-1); j++){
                     if(myrows == 1){
-                        temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/(1 + (w/h)*(w/h)) + (myboard[i][j-1] + myboard[i][j+1])/(1 + (h/w)*(h/w)));
+                        // temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                        temperature = (double) (0.25 * (myrow_bot[j] + myrow_top[j] + myboard[i][j-1] + myboard[i][j+1]));
                     }else if(i == 0){
-                        temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/(1 + (w/h)*(w/h)) + (myboard[i][j-1] + myboard[i][j+1])/(1 + (h/w)*(h/w)));
+                        temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
                     }else if(i == (myrows - 1)){
-                        temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/(1 + (w/h)*(w/h)) + (myboard[i][j-1] + myboard[i][j+1])/(1 + (h/w)*(h/w)));
+                        temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
                     }
                     myboard_new[i][j] = temperature;
                 }
             }
         }
-        printf("\niteration: %d\n", iters);
-        print2DArray(myboard_new, M, N);
-        // for (i = 0; i < myrows; i++){
-		// 	for (j = 1; j < (N-1); j++)
-		// 	{
-		// 		double calculatedDiff = fabs(myboard[i][j] - myboard_new[i][j]);
-        //         if (localDiff < calculatedDiff) {
-        //             localDiff = calculatedDiff;
-        //         }
-		// 	}
-        // }
+        // printf("\nprint2DArray myboard\n");
+        // print2DArray(myboard, 1, N);
+        // printf("\nprint2DArray myboard_new\n");
+        // print2DArray(myboard_new, 1, N);
+
+        
+        for (i = 0; i < myrows; i++){
+			for (j = 1; j < (N-1); j++)
+			{
+				double calculatedDiff = fabs(myboard[i][j] - myboard_new[i][j]);
+                if (localDiff < calculatedDiff) {
+                    localDiff = calculatedDiff;
+                }
+			}
+        }
         if (diff < localDiff) {
             diff = localDiff;
         }
 
 		iters++;
 		// swap boards (iter --> iter + 1)
-		board_update(&myboard, &myboard_new);
+        printf("\nmyid: %d, iteration: %d, diff: %2.0f\n", myid, iters, diff);
+		// board_update(&myboard, &myboard_new);
+
+        for (i = 0; i < myrows; i++){
+			for (j = 0; j < N; j++){
+                myboard[i][j] = myboard_new[i][j];
+            }
+        }
+
+        printf("\nprint2DArray myboard_new start\n");
+        print2DArray(myboard_new, myrows, N);
+        printf("\nprint2DArray myboard_new success\n");
 	}
 	
 	// gather results
@@ -280,15 +241,19 @@ int main(int argc, char** argv)
 	// gathering process, communicator
 
 	// display
-	if (myid == 0) print2DArray(board, M, N);
+	if (myid == 0) {
+        printf("\nprint2DArray start\n");
+        print2DArray(board, M, N);
+        printf("\nprint2DArray success\n");
+    }
 
     // free memory
 	if (myid == 0){
 		board_free(board);
-	    board_free(myboard);
-	    free(myrow_top);
-	    free(myrow_bot);
     }
+    board_free(myboard);
+    free(myrow_top);
+    free(myrow_bot);
 
 	MPI_Finalize();			// finalize MPI
 
