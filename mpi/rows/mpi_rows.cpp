@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <chrono>
 
-#define MAXITERS 100
+#define MAXITERS 20000
 
 void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w, int * tile_h, double * eps) {
     // Defaults
@@ -129,29 +130,26 @@ int main(int argc, char** argv)
     double temperature;
     int iters = 0;
     MPI_Status status;
-    MPI_Request request;
+    bool finish = false;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
-    int * finished;
-    bool finish = false;
 
 	if (myid == 0){
-        finished = (int*)malloc(procs * sizeof(int));
         // Initialize table
         board = board_initialize(M, N);
         boardptr = *board;
 
         borders_initialize(board, M, N);
-        board_print(board, M, N);
+        // board_print(board, M, N);
     }
 
     
     // divide work
 	mystart = M / procs * myid;				// determine scope of work for each process; process 0 also works on its own part
 	myend = M / procs * (myid + 1);
-	myrows = M / procs;
+    myrows = M / procs;
 
     myboard = board_initialize(myrows, N);
 	myboard_new = board_initialize(myrows, N);
@@ -159,31 +157,26 @@ int main(int argc, char** argv)
 	myrow_bot = (double*)malloc(N * sizeof(double));
     
 
+    if (myid == 0){
+        for (j = 0; j < N; j++){
+            myboard_new[0][j] = 0.0;
+        }
+    } else if (myid == (procs-1)){
+        for (j = 0; j < N; j++){
+            myboard_new[myrows - 1][j] = 100.0;
+        }
+    }
+
+    auto start_time = std::chrono::high_resolution_clock::now();
     // scatter initial matrix
 	MPI_Scatter(boardptr, myrows * N, MPI_DOUBLE, 
 				*myboard, myrows * N, MPI_DOUBLE, 
 				0, MPI_COMM_WORLD);
 
-    if (myid == 0){
-        for (i = 0; i < myrows; i++){
-            for (j = 0; j < N; j++){
-                myboard_new[i][j] = 0.0;
-            }
-        }
-    } else if (myid == (procs-1)){
-        for (i = 0; i < myrows; i++){
-            for (j = 0; j < N; j++){
-                myboard_new[i][j] = 100.0;
-            }
-        }
-    }
-    int message = myid;
-    int messageReceived = -1;
-
-    // MPI_Irecv(&message, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+    
 
     // do the calculation
-	while (iters < MAXITERS && finish == false)
+	while (iters < MAXITERS)
 	{
         // exchange borders with neigbouring processes
         if (myid > 0 && myid < (procs - 1)){
@@ -216,27 +209,28 @@ int main(int argc, char** argv)
             myboard_new[i][0] = 100.0;
             myboard_new[i][N-1] = 100.0;
             for (j = 1; j < (N-1); j++){
-                if(myrows == 1){
-
-                    if (myid > 0 && myid < (procs - 1)){
-                        temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
-                            // temperature = (double) (0.25 * (myrow_bot[j] + myrow_top[j] + myboard[i][j-1] + myboard[i][j+1]));
-                        // if(myid == (procs-2)){
-                        //     printf("\nmyid: %d, temperature: %6.2f\n", myid, temperature);
-                        //     printf("\nmyrow_bot[j]: %6.2f, myrow_top[j]: %6.2f, myboard[i][j-1]: %6.2f, myboard[i][j+1]: %6.2f\n", myrow_bot[j],myrow_top[j],myboard[i][j-1],myboard[i][j+1]);
-                        // }
-                        myboard_new[i][j] = temperature;
-                    }
+                //myrows == 1
+                if(myrows == 1 && myid > 0 && myid < (procs - 1)){
+                    temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    myboard_new[i][j] = temperature;
+                //myrows != 1 prva vrstica, ce je myid==0 prva vrstica ni pomembna
                 }else if(i == 0 && myid != 0){
                     temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    myboard_new[i][j] = temperature;
+                //myrows != 1 zadnja vrstica, ce je myid==(procs-1) tadnja vrstica ni pomembna
                 }else if(i == (myrows - 1) && myid != (procs-1)){
                     temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    myboard_new[i][j] = temperature;
+                //myrows != 1 vmesne vrstice
+                }else if(i > 0 && i < (myrows - 1)){
+                    temperature = 0.5 * ((myboard[i+1][j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    myboard_new[i][j] = temperature;
                 }
-                // myboard_new[i][j] = temperature;
             }
         }
         iters++;
         
+        // vsakih 10 iteracij preveri za spremembo v tem koraku, ce je manjsa od EPS ustavi
         if(iters % 10 == 0){
             diff = 0.0;
             localDiff = 0.0;
@@ -253,42 +247,11 @@ int main(int argc, char** argv)
             if (diff < localDiff) {
                 diff = localDiff;
                 if(diff <= EPSILON){
-                    printf("\nmyid: %d, iteration: %d, diff: %6.2f\n", myid, iters, (double)diff);
-                    
-                    // MPI_Test(&request, &messageReceived, MPI_STATUS_IGNORE);
-                    // if (messageReceived) {
-                    //     if(myid == 0){
-                    //         printf("root found that process %d finished\n", message);
-                    //         finished[message] = 1;
-                    //         bool all = true;
-                    //         for(int k = 1; k < procs; k++){
-                    //             if(finished[k] != 1){
-                    //                 all=false;
-                    //                 break;
-                    //             }
-                    //         }
-                    //         if (all == true){
-                    //             MPI_Isend(message, 1, MPI_INT, myid, 0, MPI_COMM_WORLD, &request);
-                    //             finish = true;
-                    //         }
-                    //     }else {
-                    //         finish = true;
-                    //     }
-                    // }else {
-                    //     MPI_Isend(message, 1, MPI_INT, myid, 0, MPI_COMM_WORLD, &request);
-                    // }
+                    if(finish == false) printf("\nmyid: %d, iteration: %d, diff: %6.4f\n", myid, iters, (double)diff);
+                    finish = true;
                 }
             }
         }
-        
-        // if(myid == 14){
-        //     printf("\nmyid: %d, iteration: %d, diff: %6.2f\n", myid, iters, (double)diff);
-        //     printf("\nprint2DArray myboard_new start\n");
-        //     board_print(myboard_new, myrows, N);
-        //     board_print(myboard, myrows, N);
-        //     printf("\nprint2DArray myboard_new success\n");
-        // }
-		// swap boards (iter --> iter + 1)
 		board_update(&myboard, &myboard_new);
 
         
@@ -305,7 +268,10 @@ int main(int argc, char** argv)
 
 	// display
 	if (myid == 0) {
-        board_print(board, M, N);
+        // board_print(board, M, N);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        std::cout << "Execution time: " << runningTime << " ms." << std::endl;
     }
 
     // free memory

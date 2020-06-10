@@ -4,7 +4,6 @@
 #SBATCH --reservation=fri
 #SBATCH --output=steady_heat.log
 
-#SBATCH --constraint=AMD
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --ntasks-per-socket=8

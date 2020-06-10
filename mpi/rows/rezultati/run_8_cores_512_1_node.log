@@ -1,0 +1,16 @@
+myid: 2, iteration: 5910, diff: 0.0010
+
+myid: 3, iteration: 6060, diff: 0.0010
+
+myid: 4, iteration: 6120, diff: 0.0010
+
+myid: 5, iteration: 7500, diff: 0.0010
+
+myid: 7, iteration: 8590, diff: 0.0010
+
+myid: 6, iteration: 9030, diff: 0.0010
+
+myid: 0, iteration: 15860, diff: 0.0010
+
+myid: 1, iteration: 17110, diff: 0.0010
+Execution time: 10453 ms.

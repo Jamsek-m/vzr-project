@@ -1,0 +1,66 @@
+
+myid: 31, iteration: 4030, diff: 0.0010
+
+myid: 7, iteration: 4530, diff: 0.0010
+
+myid: 8, iteration: 5050, diff: 0.0010
+
+myid: 9, iteration: 5460, diff: 0.0010
+
+myid: 10, iteration: 5740, diff: 0.0010
+
+myid: 11, iteration: 5910, diff: 0.0010
+
+myid: 12, iteration: 6000, diff: 0.0010
+
+myid: 13, iteration: 6040, diff: 0.0010
+
+
+myid: 15, iteration: 6060, diff: 0.0010
+myid: 14, iteration: 6060, diff: 0.0010
+
+
+myid: 16, iteration: 6070, diff: 0.0010
+myid: 17, iteration: 6070, diff: 0.0010
+
+myid: 18, iteration: 6090, diff: 0.0010
+
+myid: 19, iteration: 6120, diff: 0.0010
+
+myid: 20, iteration: 6200, diff: 0.0010
+
+myid: 30, iteration: 6210, diff: 0.0010
+
+myid: 21, iteration: 6390, diff: 0.0010
+
+myid: 22, iteration: 6790, diff: 0.0010
+
+myid: 0, iteration: 7230, diff: 0.0010
+
+myid: 23, iteration: 7500, diff: 0.0010
+
+myid: 29, iteration: 7680, diff: 0.0010
+
+myid: 24, iteration: 8330, diff: 0.0010
+
+myid: 28, iteration: 8590, diff: 0.0010
+
+myid: 25, iteration: 8900, diff: 0.0010
+
+myid: 27, iteration: 9000, diff: 0.0010
+
+myid: 26, iteration: 9030, diff: 0.0010
+
+myid: 1, iteration: 11270, diff: 0.0010
+
+myid: 2, iteration: 14030, diff: 0.0010
+
+myid: 3, iteration: 15860, diff: 0.0010
+
+myid: 4, iteration: 16870, diff: 0.0010
+
+myid: 6, iteration: 17060, diff: 0.0010
+
+myid: 5, iteration: 17110, diff: 0.0010
+Execution time: 3817 ms.
+
