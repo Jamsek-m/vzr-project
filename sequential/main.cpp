@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <chrono>
 
 
 double ** initTable(int m, int n) {
@@ -101,6 +102,7 @@ int main(int argc, const char * argv[]) {
     int iterations = 0;
     double diff = EPSILON;
 
+    auto start_time = std::chrono::high_resolution_clock::now();
     while (EPSILON <= diff) {
 
         // Copy table to old table
@@ -133,8 +135,12 @@ int main(int argc, const char * argv[]) {
         iterations++;
         // std::cout << "Diff: " << diff << ", Eps: " << EPSILON << std::endl;
     }
+    auto end_time = std::chrono::high_resolution_clock::now();
 
     std::cout << "Number of iterations: " << iterations << std::endl;
+    
+    auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    std::cout << "Execution time: " << runningTime << " ms." << std::endl;
 
     print2DArray(table, M, N);
 
