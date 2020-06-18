@@ -8,13 +8,12 @@
 
 #define MAXITERS 20000
 
-void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w, int * tile_h, double * eps) {
+void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w, int * tile_h) {
     // Defaults
     *table_w = 20;
     *table_h = 20;
     *tile_h = 1;
     *tile_w = 1;
-    *eps = 0.001;
 
     if (argc < 3) {
         return;
@@ -26,12 +25,6 @@ void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w
         *table_h = atoi(argv[2]);
         *tile_w = atoi(argv[3]);
         *tile_h = atoi(argv[4]);
-    } else if (argc >= 6) {
-        *table_w = atoi(argv[1]);
-        *table_h = atoi(argv[2]);
-        *tile_w = atoi(argv[3]);
-        *tile_h = atoi(argv[4]);
-        *eps = atof(argv[5]);
     }
 }
 
@@ -110,12 +103,9 @@ void borders_initialize(double** board, int m, int n)
 int main(int argc, char** argv)
 {
     int W, H, w, h;
-    double EPSILON;
-    initArgs(argc, argv, &W, &H, &w, &h, &EPSILON);
+    initArgs(argc, argv, &W, &H, &w, &h);
     int M = H / h;
     int N = W / w;
-    double localDiff = 0;
-    double diff = 1.0;
 
     double * boardptr = NULL;
 	double ** board;
@@ -130,7 +120,6 @@ int main(int argc, char** argv)
     double temperature;
     int iters = 0;
     MPI_Status status;
-    bool finish = false;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
@@ -145,7 +134,6 @@ int main(int argc, char** argv)
         // board_print(board, M, N);
     }
 
-    
     // divide work
 	mystart = M / procs * myid;				// determine scope of work for each process; process 0 also works on its own part
 	myend = M / procs * (myid + 1);
@@ -157,14 +145,21 @@ int main(int argc, char** argv)
 	myrow_bot = (double*)malloc(N * sizeof(double));
     
 
+    // myboard_new proces 0 prva vrstica 0.0
     if (myid == 0){
         for (j = 0; j < N; j++){
             myboard_new[0][j] = 0.0;
         }
+    // myboard_new zadnji proces zadnja vrstica 100.0
     } else if (myid == (procs-1)){
         for (j = 0; j < N; j++){
             myboard_new[myrows - 1][j] = 100.0;
         }
+    } 
+    // myboard_new vsi procesi prvi in zadnji stolpec 100.0
+    for (i = 0; i < myrows; i++){
+        myboard_new[i][0] = 100.0;
+        myboard_new[i][N-1] = 100.0;
     }
 
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -172,8 +167,6 @@ int main(int argc, char** argv)
 	MPI_Scatter(boardptr, myrows * N, MPI_DOUBLE, 
 				*myboard, myrows * N, MPI_DOUBLE, 
 				0, MPI_COMM_WORLD);
-
-    
 
     // do the calculation
 	while (iters < MAXITERS)
@@ -206,8 +199,6 @@ int main(int argc, char** argv)
 		// do the computation of my part
         
         for (i = 0; i < myrows; i++){
-            myboard_new[i][0] = 100.0;
-            myboard_new[i][N-1] = 100.0;
             for (j = 1; j < (N-1); j++){
                 //myrows == 1
                 if(myrows == 1 && myid > 0 && myid < (procs - 1)){
@@ -230,31 +221,7 @@ int main(int argc, char** argv)
         }
         iters++;
         
-        // vsakih 10 iteracij preveri za spremembo v tem koraku, ce je manjsa od EPS ustavi
-        if(iters % 10 == 0){
-            diff = 0.0;
-            localDiff = 0.0;
-
-            for (i = 0; i < myrows; i++){
-                for (j = 1; j < (N-1); j++)
-                {
-                    double calculatedDiff = fabs(myboard[i][j] - myboard_new[i][j]);
-                    if (localDiff < calculatedDiff) {
-                        localDiff = calculatedDiff;
-                    }
-                }
-            }
-            if (diff < localDiff) {
-                diff = localDiff;
-                if(diff <= EPSILON){
-                    if(finish == false) printf("\nmyid: %d, iteration: %d, diff: %6.4f\n", myid, iters, (double)diff);
-                    finish = true;
-                }
-            }
-        }
 		board_update(&myboard, &myboard_new);
-
-        
 	}
     MPI_Barrier(MPI_COMM_WORLD);
 	
