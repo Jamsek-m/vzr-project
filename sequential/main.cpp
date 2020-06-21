@@ -128,7 +128,6 @@ int main(int argc, const char * argv[]) {
         }*/
     }
     auto end_time = std::chrono::high_resolution_clock::now();
-    std::cout << "Algorithm finished!" << std::endl;
 
     auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     std::cout << "Execution time: " << runningTime << " ms." << std::endl;
