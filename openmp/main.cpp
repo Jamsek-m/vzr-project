@@ -150,5 +150,7 @@ int main(int argc, const char * argv[]) {
     double runningTime = endTime - startTime;
     std::cout << "Execution time: " << runningTime << " s." << std::endl;
 
+    // print2DArray(table, M, N);
+
     return 0;
 }
