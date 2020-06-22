@@ -205,15 +205,15 @@ int main(int argc, char** argv)
                     temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
                     myboard_new[i][j] = temperature;
                 //myrows != 1 prva vrstica, ce je myid==0 prva vrstica ni pomembna
-                }else if(i == 0 && myid != 0){
+                }else if(myrows != 1 && i == 0 && myid != 0){
                     temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
                     myboard_new[i][j] = temperature;
                 //myrows != 1 zadnja vrstica, ce je myid==(procs-1) tadnja vrstica ni pomembna
-                }else if(i == (myrows - 1) && myid != (procs-1)){
+                }else if(myrows != 1 && i == (myrows - 1) && myid != (procs-1)){
                     temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
                     myboard_new[i][j] = temperature;
                 //myrows != 1 vmesne vrstice
-                }else if(i > 0 && i < (myrows - 1)){
+                }else if(myrows != 1 && i > 0 && i < (myrows - 1)){
                     temperature = 0.5 * ((myboard[i+1][j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
                     myboard_new[i][j] = temperature;
                 }
