@@ -8,22 +8,17 @@
 
 
 double ** initTable(int m, int n) {
-    /*double ** table = (double **)malloc(m * sizeof(double *));
-    for (int i = 0; i < m; i++) {
-        table[i] = (double *)malloc(n * sizeof(double));
-    }
-    return table;*/
     double * fields = (double *) malloc(sizeof(double) * m * n);
-    double ** table = (double **) malloc(sizeof(double) * n);
-    for (int k = 0; k < n; k++) {
-        table[k] = &fields[k * m];
+    double ** table = (double **) malloc(sizeof(double*) * m);
+    for (int k = 0; k < m; k++) {
+        table[k] = &fields[k * n];
     }
     // redundant
-    /*for (int k = 0; k < n; k++) {
-        for (int l = 0; l < m; l++) {
-            table[k][l] 
+    for (int k = 0; k < m; k++) {
+        for (int l = 0; l < n; l++) {
+            table[k][l] = rand() < 0.25 * RAND_MAX;
         }
-    }*/
+    }
     return table;
 }
 
@@ -65,6 +60,24 @@ void print2DArray(double ** table, int m, int n) {
         printf("]\n");
     }
     printf("]\n");
+}
+
+void print2DArrayParallel(double ** table, int m, int n, int procId) {
+    printf("%d: [\n", procId);
+    for (int i = 0; i < m; i++) {
+        printf("%d: [", procId);
+        for (int j = 0; j < n; j++) {
+            if (j != 0) {
+                printf(", ");
+            }
+            printf("%6.2f", table[i][j]);
+            fflush(stdout);
+        }
+        printf("]: %d\n", procId);
+        fflush(stdout);
+    }
+    printf("]: %d\n", procId);
+    fflush(stdout);
 }
 
 void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w, int * tile_h) {
@@ -114,15 +127,12 @@ int main(int argc, char * argv[]) {
     double ** table;
 
     int processId, processNum;
-    int processStart, processEnd, rowsNum;
     int columnsNum;
     double ** localTable;
     double ** localTableNew;
-    double * localTopRow, * localBottomRow;
     double * localLeftColumn, * localRightColumn;
 
     int i, j;
-    double temperature;
     int iters = 0;
     MPI_Status status;
 
@@ -143,46 +153,41 @@ int main(int argc, char * argv[]) {
         initOuterTiles(table, M, N);
     }
 
-    // processStart = M / processNum * processId;
-    // processEnd = M / processNum * (processId + 1);
-    rowsNum = M / processNum;
     columnsNum = N / processNum;
-
     localTable = initTable(M, columnsNum);
     localTableNew = initTable(M, columnsNum);
-    // localTable = initTable(rowsNum, N);
-    // localTableNew = initTable(rowsNum, N);
-    // localTopRow = (double *) malloc(N * sizeof(double));
-    // localBottomRow = (double *) malloc(N * sizeof(double));
+
+    // print2DArrayParallel(localTableNew, M, columnsNum, processId);
+
     localLeftColumn = (double *) malloc(M * sizeof(double));
     localRightColumn = (double *) malloc(M * sizeof(double));
 
     // Set initial data in local table new
     if (processId == 0) {
         // first column - first element is 0.0, others are 100.0
-        for (j = 1; j < M; j++) {
+        for (j = 0; j < M; j++) {
             localTableNew[j][0] = 100.0;
         }
     } else if (processId == (processNum - 1)) {
         // last column - first element is 0.0, others are 100.0
-        for (j = 1; j < M; j++) {
+        for (j = 0; j < M; j++) {
             localTableNew[j][columnsNum - 1] = 100.0;
         }
     }
     for (i = 0; i < columnsNum; i++) {
+        // set bottom row to 100.0
+        localTableNew[M - 1][i] = 100.0;
         // set top row to 0.0
         localTableNew[0][i] = 0.0;
     }
-    for (i = 0; i < columnsNum; i++) {
-        // set bottom row to 100.0
-        localTableNew[columnsNum - 1][i] = 100.0;
-    }
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    
+
     MPI_Scatter(pointerToTable, columnsNum, columnType,
                 *localTable, M * columnsNum, MPI_DOUBLE,
                 0, MPI_COMM_WORLD);
+
+    // print2DArray(localTable, M, columnsNum);
     
     MPI_Request requestLeft, requestRight;
     double w_h = 1 + pow(w/h, 2.0);
@@ -257,7 +262,7 @@ int main(int argc, char * argv[]) {
         auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         std::cout << "Execution time: " << runningTime << " ms." << std::endl;
 
-        // print2DArray(table, M, N);
+        print2DArray(table, M, N);
     }
 
     if (processId == 0) {
