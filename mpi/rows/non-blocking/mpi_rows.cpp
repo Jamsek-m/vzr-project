@@ -54,7 +54,7 @@ double** board_initialize(int n, int m)
 
 	for (k = 0; k < n; k++)
 		for (l = 0; l < m; l++)
-			b[k][l] = rand() < 0.25 * RAND_MAX;
+			b[k][l] = 0.0;
 
 	return b;
 }
@@ -142,6 +142,21 @@ int main(int argc, char** argv)
 	myend = M / procs * (myid + 1);
     myrows = M / procs;
 
+    int counts[procs];
+    int displacements[procs];
+    int displacement = 0;
+    for(int i = 0; i < procs; i++){
+        counts[i] = myrows * N;
+        if(i < (M % procs)){
+            counts[i] += N;
+        }
+        displacements[i] = displacement;
+        if (i == 0) displacements[i] = 0;
+        displacement = displacements[i] + counts[i];
+        // if(myid == 0) printf("counts[%d] = %d, displacements[%d] = %d\n", i, counts[i], i, displacements[i]);
+    }
+    myrows = counts[myid]/N;
+
     myboard = board_initialize(myrows, N);
 	myboard_new = board_initialize(myrows, N);
     myrow_top = (double*)malloc(N * sizeof(double));
@@ -166,17 +181,15 @@ int main(int argc, char** argv)
     }
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    // scatter initial matrix
-    MPI_Iscatter(boardptr, myrows * N, MPI_DOUBLE, 
-                *myboard, myrows * N, MPI_DOUBLE, 
+
+    MPI_Iscatterv(boardptr, counts, displacements, MPI_DOUBLE, 
+				*myboard, counts[myid], MPI_DOUBLE, 
                 0, MPI_COMM_WORLD, &request);
 
-
-    // printf("Process %d issued the MPI_Iscatter and has moved on, printing this message.\n", myid);
-    // printf("Process %d waits for the MPI_Iscatter to complete.\n", myid);
     MPI_Wait(&request, &status);
-    // printf("The MPI_Wait completed, meaning that the MPI_Iscatter completed; process %d received value %d.\n", myid, status);
  
+    double wh = 1.0 + (double)((w/h)*(w/h));
+    double hw = 1.0 + (double)((w/h)*(w/h));
 
     // do the calculation
 	while (iters < MAXITERS)
@@ -190,23 +203,19 @@ int main(int argc, char** argv)
             MPI_Irecv(myrow_top, N, MPI_DOUBLE, (myid + procs - 1) % procs, 0, MPI_COMM_WORLD, &request_two);
 
             MPI_Wait(&request_one, MPI_STATUS_IGNORE);
-            // printf("myid: %d, MPI_Wait 1 is OK, iters: %d\n", myid, iters);
             MPI_Wait(&request_two, MPI_STATUS_IGNORE);
-            // printf("myid: %d, MPI_Wait 2 is OK, iters: %d\n", myid, iters);
         }
 		
         if (myid == 0 && myid < (procs - 1)){            
             MPI_Isend(myboard[myrows - 1], N, MPI_DOUBLE, (myid + procs + 1) % procs, 0, MPI_COMM_WORLD, &request_two);
             MPI_Irecv(myrow_bot, N, MPI_DOUBLE, (myid + procs + 1) % procs, 1, MPI_COMM_WORLD, &request_one);
             MPI_Wait(&request_one, MPI_STATUS_IGNORE);
-            // printf("myid: %d, MPI_Wait 1 is OK, iters: %d\n", myid, iters);
         }    
 
         if (myid > 0 && myid == (procs - 1)){
             MPI_Isend(myboard[0], N, MPI_DOUBLE, (myid + procs - 1) % procs, 1, MPI_COMM_WORLD, &request_two);
             MPI_Irecv(myrow_top, N, MPI_DOUBLE, (myid + procs - 1) % procs, 0, MPI_COMM_WORLD, &request_one);
             MPI_Wait(&request_one, MPI_STATUS_IGNORE);
-            // printf("myid: %d, MPI_Wait 1 is OK, iters: %d\n", myid, iters);
         }
 
 		// do the computation of my part
@@ -215,19 +224,19 @@ int main(int argc, char** argv)
             for (j = 1; j < (N-1); j++){
                 //myrows == 1
                 if(myrows == 1 && myid > 0 && myid < (procs - 1)){
-                    temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 //myrows != 1 prva vrstica, ce je myid==0 prva vrstica ni pomembna
                 }else if(myrows != 1 && i == 0 && myid != 0){
-                    temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 //myrows != 1 zadnja vrstica, ce je myid==(procs-1) tadnja vrstica ni pomembna
                 }else if(myrows != 1 && i == (myrows - 1) && myid != (procs-1)){
-                    temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 //myrows != 1 vmesne vrstice
                 }else if(myrows != 1 && i > 0 && i < (myrows - 1)){
-                    temperature = 0.5 * ((myboard[i+1][j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myboard[i+1][j] + myboard[i-1][j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 }
             }
@@ -236,10 +245,8 @@ int main(int argc, char** argv)
         
 		board_update(&myboard, &myboard_new);
 	}
-
-    MPI_Igather(*myboard, myrows * N, MPI_DOUBLE, 
-			   boardptr, myrows * N, MPI_DOUBLE, 
-			   0, MPI_COMM_WORLD, &request);
+    MPI_Igatherv(*myboard, counts[myid], MPI_DOUBLE, boardptr,
+                counts, displacements, MPI_DOUBLE, 0, MPI_COMM_WORLD, &request);
     MPI_Wait(&request, MPI_STATUS_IGNORE);
 
 	// display
