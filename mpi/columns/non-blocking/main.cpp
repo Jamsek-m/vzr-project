@@ -3,8 +3,9 @@
 #include <chrono>
 #include <math.h>
 #include "/usr/include/openmpi-x86_64/mpi.h"
+#include <sstream>
 
-#define MAX_ITERS 1000
+#define MAX_ITERS 300
 
 
 double ** initTable(int m, int n) {
@@ -16,7 +17,7 @@ double ** initTable(int m, int n) {
     // redundant
     for (int k = 0; k < m; k++) {
         for (int l = 0; l < n; l++) {
-            table[k][l] = rand() < 0.25 * RAND_MAX;
+            table[k][l] = -1.0; // rand() < 0.25 * RAND_MAX;
         }
     }
     return table;
@@ -45,6 +46,39 @@ void initOuterTiles(double ** table, int m, int n) {
             table[i][j] = average;
         }
     }
+}
+
+void print2DArrayBufferred(double ** table, int m, int n, int procId) {
+    std::stringstream ss;
+    ss.precision(6);
+    ss << procId << ": [\n";
+    for (int i = 0; i < m; i++) {
+        ss << procId << ": [";
+        for (int j = 0; j < n; j++) {
+            if (j != 0) {
+                ss << ", ";
+            }
+            ss << table[i][j];
+        }
+        ss << "]\n";
+    }
+    ss << "]\n";
+    std::cout << ss.str() << std::endl;
+}
+
+void printArrayBufferred(double * table, int len, int procId) {
+    std::stringstream ss;
+    ss.precision(6);
+
+    ss << procId << ": [\n";
+    for (int i = 0; i < len; i++) {
+        if (i != 0) {
+            ss << ",";
+        }
+        ss << table[i] << "\n";
+    }
+    ss << "]";
+    std::cout << ss.str() << std::endl;
 }
 
 void print2DArray(double ** table, int m, int n) {
@@ -120,8 +154,8 @@ void freeTable(double ** table) {
 int main(int argc, char * argv[]) {
     int W, H, w, h;
     initArgs(argc, argv, &W, &H, &w, &h);
-    int M = H / h;
-    int N = W / w;
+    const int M = H / h;
+    const int N = W / w;
 
     double * pointerToTable = NULL;
     double ** table;
@@ -140,10 +174,12 @@ int main(int argc, char * argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &processId);
     MPI_Comm_size(MPI_COMM_WORLD, &processNum);
 
+    columnsNum = N / processNum;
+
     MPI_Datatype columnType, column;
-    MPI_Type_vector(M, 1, N, MPI_DOUBLE, &column);
+    MPI_Type_vector(M, columnsNum, N, MPI_DOUBLE, &column);
     MPI_Type_commit(&column);
-    MPI_Type_create_resized(column, 0, 1 * sizeof(double), &columnType);
+    MPI_Type_create_resized(column, 0, columnsNum * sizeof(double), &columnType);
     MPI_Type_commit(&columnType);
 
     // init table
@@ -153,97 +189,82 @@ int main(int argc, char * argv[]) {
         initOuterTiles(table, M, N);
     }
 
-    columnsNum = N / processNum;
     localTable = initTable(M, columnsNum);
     localTableNew = initTable(M, columnsNum);
-
-    // print2DArrayParallel(localTableNew, M, columnsNum, processId);
 
     localLeftColumn = (double *) malloc(M * sizeof(double));
     localRightColumn = (double *) malloc(M * sizeof(double));
 
-    // Set initial data in local table new
-    if (processId == 0) {
-        // first column - first element is 0.0, others are 100.0
-        for (j = 0; j < M; j++) {
-            localTableNew[j][0] = 100.0;
-        }
-    } else if (processId == (processNum - 1)) {
-        // last column - first element is 0.0, others are 100.0
-        for (j = 0; j < M; j++) {
-            localTableNew[j][columnsNum - 1] = 100.0;
-        }
-    }
-    for (i = 0; i < columnsNum; i++) {
-        // set bottom row to 100.0
-        localTableNew[M - 1][i] = 100.0;
-        // set top row to 0.0
-        localTableNew[0][i] = 0.0;
-    }
-
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    MPI_Scatter(pointerToTable, columnsNum, columnType,
+    MPI_Scatter(pointerToTable, 1, columnType,
                 *localTable, M * columnsNum, MPI_DOUBLE,
                 0, MPI_COMM_WORLD);
 
-    // print2DArray(localTable, M, columnsNum);
+    for (int i = 0; i < columnsNum; i++) {
+        for (int j = 0; j < M; j++) {
+            localTableNew[j][i] = localTable[j][i];
+        }
+    }
     
-    MPI_Request requestLeft, requestRight;
+    MPI_Request requestSendLeft, requestSendRight;
     double w_h = 1 + pow(w/h, 2.0);
     double h_w = 1 + pow(h/w, 2.0); 
+
+    MPI_Datatype sendColumnType, sendColumn;
+    MPI_Type_vector(M, 1, columnsNum, MPI_DOUBLE, &sendColumn);
+    MPI_Type_commit(&sendColumn);
 
     while (iters < MAX_ITERS) {
         /*
             Exchange data
         */
-        if (processId == 0 && processId != processNum - 1) {
-            // First column and if only one column, not last
-            MPI_Isend(localTable[columnsNum - 1], N, MPI_DOUBLE, (processId + processNum + 1) % processNum, 0, MPI_COMM_WORLD, &requestLeft);
-            MPI_Irecv(localRightColumn, N, MPI_DOUBLE, (processId + processNum + 1) % processNum, 1, MPI_COMM_WORLD, &requestRight);
-            MPI_Wait(&requestLeft, MPI_STATUS_IGNORE);
-        } else if (processId > 0 && processId == processNum - 1) {
-            // Last column and if only one column, not first
-            MPI_Isend(localTable[0], N, MPI_DOUBLE, (processId + processNum - 1) % processNum, 1, MPI_COMM_WORLD, &requestLeft);
-            MPI_Irecv(localLeftColumn, N, MPI_DOUBLE, (processId + processNum - 1) % processNum, 0, MPI_COMM_WORLD, &requestRight);
-            MPI_Wait(&requestRight, MPI_STATUS_IGNORE);
-        } else if (processId > 0 && processId < processNum - 1) {
-            // Middle columns
-            MPI_Isend(localTable[0], N, MPI_DOUBLE, (processId + processNum - 1) % processNum, 1, MPI_COMM_WORLD, &requestLeft);
-            MPI_Irecv(localRightColumn, N, MPI_DOUBLE, (processId + processNum + 1) % processNum, 1, MPI_COMM_WORLD, &requestRight);
+        if (processId > 0) {
+            // Send left
+            MPI_Isend(&localTable[0][0], 1, sendColumn, (processId - 1), 0, MPI_COMM_WORLD, &requestSendLeft);
 
-            MPI_Isend(localTable[columnsNum - 1], N, MPI_DOUBLE, (processId + processNum + 1) % processNum, 0, MPI_COMM_WORLD, &requestLeft);
-            MPI_Irecv(localLeftColumn, N, MPI_DOUBLE, (processId + processNum - 1) % processNum, 0, MPI_COMM_WORLD, &requestLeft);
-
-            MPI_Wait(&requestLeft, MPI_STATUS_IGNORE);
-            MPI_Wait(&requestRight, MPI_STATUS_IGNORE);
+            // Receive left
+            MPI_Irecv(localLeftColumn, M, MPI_DOUBLE, (processId - 1), 1, MPI_COMM_WORLD, &requestSendRight);
+            MPI_Wait(&requestSendRight, MPI_STATUS_IGNORE);
         }
+        if (processId < processNum - 1) {
+            // Send right
+            MPI_Isend(&localTable[0][columnsNum - 1], 1, sendColumn, (processId + 1), 1, MPI_COMM_WORLD, &requestSendRight);
 
+            // Receive right
+            MPI_Irecv(localRightColumn, M, MPI_DOUBLE, (processId + 1), 0, MPI_COMM_WORLD, &requestSendLeft);
+            MPI_Wait(&requestSendLeft, MPI_STATUS_IGNORE);
+        }
         /*
             Compute new temperature
         */
-        // left:
-        // localLeftColumn[j]
-        // right:
-        // localRightColumn[j]
-        // bottom:
-        // localTable[i][j + 1]
-        // top:
-        // localTable[i][j - 1]
-        for (i = 0; i < columnsNum; i++) {
-            for (j = 1; j < M - 1; j++) {
-                if (columnsNum == 1 && processId > 0 && processId < processNum - 1) {
-                    // Only one column
-                    localTableNew[i][j] = 0.5 * ((localTable[i][j + 1] + localTable[i][j - 1]) / w_h + (localRightColumn[j] + localLeftColumn[j]) / h_w);
-                } else if (i == 0 && processId != 0 && columnsNum > 1) {
-                    // Multiple rows
-                    localTableNew[i][j] = 0.5 * ((localTable[i][j + 1] + localTable[i][j - 1]) / w_h + (localTable[i + 1][j] + localLeftColumn[j]) / h_w);
-                } else if (columnsNum != 1 && i == columnsNum - 1 && processId != processNum - 1) {
-                    // Multiple rows, last row in block, but not last row in table
-                    localTableNew[i][j] = 0.5 * ((localTable[i][j + 1] + localTable[i][j - 1]) / w_h + (localRightColumn[j] + localTable[i - 1][j]) / h_w);
-                } else if (columnsNum != 1 && i > 0 && i < columnsNum - 1) {
-                    // All rows in between
-                    localTableNew[i][j] = 0.5 * ((localTable[i][j + 1] + localTable[i][j - 1]) / w_h + (localTable[i + 1][j] + localTable[i - 1][j]) / h_w);
+
+        for (i = 1; i < M - 1; i++) {
+            for (j = 0; j < columnsNum; j++) {
+
+                if (processId == 0) {
+                    // Skip first column
+                    if (j == columnsNum - 1) {
+                        // if last column
+                        localTableNew[i][j] = 0.5 * ((localTable[i + 1][j] + localTable[i - 1][j]) / w_h + (localRightColumn[i] + localTable[i][j - 1]) / h_w);
+                    } else if (j != 0) {
+                        // all other columns
+                        localTableNew[i][j] = 0.5 * ((localTable[i + 1][j] + localTable[i - 1][j]) / w_h + (localTable[i][j + 1] + localTable[i][j - 1]) / h_w);
+                    }
+                } else if (processId == processNum - 1) {
+                    if (j == 0) {
+                        localTableNew[i][j] = 0.5 * ((localTable[i + 1][j] + localTable[i - 1][j]) / w_h + (localTable[i][j + 1] + localLeftColumn[i]) / h_w);
+                    } else if (j != columnsNum - 1) {
+                        localTableNew[i][j] = 0.5 * ((localTable[i + 1][j] + localTable[i - 1][j]) / w_h + (localTable[i][j + 1] + localTable[i][j - 1]) / h_w);
+                    }
+                } else {
+                    if (j == 0) {
+                        localTableNew[i][j] = 0.5 * ((localTable[i + 1][j] + localTable[i - 1][j]) / w_h + (localTable[i][j + 1] + localLeftColumn[i]) / h_w);
+                    } else if (j == columnsNum - 1) {
+                        localTableNew[i][j] = 0.5 * ((localTable[i + 1][j] + localTable[i - 1][j]) / w_h + (localRightColumn[i] + localTable[i][j - 1]) / h_w);
+                    } else {
+                        localTableNew[i][j] = 0.5 * ((localTable[i + 1][j] + localTable[i - 1][j]) / w_h + (localTable[i][j + 1] + localTable[i][j - 1]) / h_w);
+                    }
                 }
             }
         }
@@ -254,7 +275,7 @@ int main(int argc, char * argv[]) {
     }
 
     MPI_Gather(*localTable, columnsNum * M, MPI_DOUBLE,
-               pointerToTable, columnsNum * M, MPI_DOUBLE,
+               pointerToTable, 1, columnType,
                0, MPI_COMM_WORLD);
     
     if (processId == 0) {
@@ -262,7 +283,7 @@ int main(int argc, char * argv[]) {
         auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         std::cout << "Execution time: " << runningTime << " ms." << std::endl;
 
-        print2DArray(table, M, N);
+        // print2DArray(table, M, N);
     }
 
     if (processId == 0) {
