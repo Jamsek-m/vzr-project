@@ -106,27 +106,27 @@ void borders_initialize(double** board, int m, int n)
 double calculate_temperature(int i, int j, int h, int w, double **myboard, double *myrow_top, double *myrow_bot, double *mycolumn_right, double *mycolumn_left)
 {
     double wh = 1.0 + (double)((w/h)*(w/h));
-    double hw = 1.0 + (double)((w/h)*(w/h));
+    double hw = 1.0 + (double)((h/w)*(h/w));
     double temperature = 0;
 	
     // gor desno
     if (j == w - 1 && i == 0){
-        temperature = 0.5 * ((myboard[i + 1][j] + myrow_top[i])/wh + (myboard[i][j - 1] + mycolumn_right[i])/hw);
+        temperature = 0.5 * ((myboard[i + 1][j] + myrow_top[j])/wh + (myboard[i][j - 1] + mycolumn_right[i])/hw);
     // gor vmes
     } else if (j != 0 && j != w - 1 && i == 0){
-        temperature = 0.5 * ((myboard[i + 1][j] + myrow_top[i])/wh + (myboard[i][j - 1] + myboard[i][j + 1])/hw);
+        temperature = 0.5 * ((myboard[i + 1][j] + myrow_top[j])/wh + (myboard[i][j - 1] + myboard[i][j + 1])/hw);
     // gor levo
     } else if (j == 0 && i == 0){
-        temperature = 0.5 * ((myboard[i + 1][j] + myrow_top[i])/wh + (myboard[i][j + 1] + mycolumn_left[i])/hw);
+        temperature = 0.5 * ((myboard[i + 1][j] + myrow_top[j])/wh + (myboard[i][j + 1] + mycolumn_left[i])/hw);
     // dol desno
     } else if (j == w - 1 && i == h - 1){
-        temperature = 0.5 * ((myboard[i - 1][j] + myrow_bot[i])/wh + (myboard[i][j - 1] + mycolumn_right[i])/hw);
+        temperature = 0.5 * ((myboard[i - 1][j] + myrow_bot[j])/wh + (myboard[i][j - 1] + mycolumn_right[i])/hw);
     // dol vmes
     } else if (j != 0 && j != w - 1 && i == h - 1){
-        temperature = 0.5 * ((myboard[i - 1][j] + myrow_bot[i])/wh + (myboard[i][j - 1] + myboard[i][j + 1])/hw);
+        temperature = 0.5 * ((myboard[i - 1][j] + myrow_bot[j])/wh + (myboard[i][j - 1] + myboard[i][j + 1])/hw);
     // dol levo
     } else if (j == 0 && i == h - 1){
-        temperature = 0.5 * ((myboard[i - 1][j] + myrow_bot[i])/wh + (myboard[i][j + 1] + mycolumn_left[i])/hw);
+        temperature = 0.5 * ((myboard[i - 1][j] + myrow_bot[j])/wh + (myboard[i][j + 1] + mycolumn_left[i])/hw);
     // levo vmes
     } else if (j == 0 && i != h - 1 && i != 0){
         temperature = 0.5 * ((myboard[i + 1][j] + myboard[i - 1][j])/wh + (myboard[i][j + 1] + mycolumn_left[i])/hw);
@@ -236,13 +236,13 @@ int main(int argc, char** argv)
                         MPI_COMM_WORLD, &status);
         }    
         // ce nisi najbolj levi stolpec poslji levo in sprejmi od levega
-        if (myid % N != 0){
+        if ((myid + N) % N != 0){
             MPI_Sendrecv(&myboard[0][0], 1, columntype, myid - 1, 2,
                         mycolumn_left, w, MPI_DOUBLE, myid - 1, 3, 
                         MPI_COMM_WORLD, &status);
         }
         // ce nisi najbolj desni stolpec poslji desno in sprejmi od desnega
-        if (myid % N != N - 1){
+        if ((myid + N) % N != N - 1){
             MPI_Sendrecv(&myboard[0][w - 1], 1, columntype, myid + 1, 3,
                         mycolumn_right, w, MPI_DOUBLE, myid + 1, 2,
                         MPI_COMM_WORLD, &status);
@@ -279,7 +279,7 @@ int main(int argc, char** argv)
                     } 
 
                 // vmesna vrstica
-                } else {
+                } else if (myid >=  N && myid < (M - 1) * N) {
                     // 1.stolpec
                     if (myid % N == 0 && j != 0){
                         temperature = calculate_temperature(i, j, h, w, myboard, myrow_top, myrow_bot, mycolumn_right, mycolumn_left);
