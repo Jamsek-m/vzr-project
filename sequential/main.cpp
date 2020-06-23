@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <chrono>
 
-#define MAXITERS 2000
+#define MAXITERS 300
 
 
 double ** initTable(int m, int n) {

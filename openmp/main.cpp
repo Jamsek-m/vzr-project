@@ -5,7 +5,7 @@
 #include <chrono>
 #include <omp.h>
 
-#define MAXITERS 2000
+#define MAXITERS 300
 
 
 double ** initTable(int m, int n) {
