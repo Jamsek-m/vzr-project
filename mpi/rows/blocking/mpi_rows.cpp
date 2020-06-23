@@ -54,7 +54,7 @@ double** board_initialize(int n, int m)
 
 	for (k = 0; k < n; k++)
 		for (l = 0; l < m; l++)
-			b[k][l] = rand() < 0.25 * RAND_MAX;
+			b[k][l] = 0.0;
 
 	return b;
 }
@@ -131,13 +131,28 @@ int main(int argc, char** argv)
         boardptr = *board;
 
         borders_initialize(board, M, N);
-        // board_print(board, M, N);
+        board_print(board, M, N);
     }
 
     // divide work
 	mystart = M / procs * myid;				// determine scope of work for each process; process 0 also works on its own part
 	myend = M / procs * (myid + 1);
     myrows = M / procs;
+
+    int counts[procs];
+    int displacements[procs];
+    int displacement = 0;
+    for(int i = 0; i < procs; i++){
+        counts[i] = myrows * N;
+        if(i < (M % procs)){
+            counts[i] += N;
+        }
+        displacements[i] = displacement;
+        if (i == 0) displacements[i] = 0;
+        displacement = displacements[i] + counts[i];
+        if(myid == 0) printf("counts[%d] = %d, displacements[%d] = %d\n", i, counts[i], i, displacements[i]);
+    }
+    myrows = counts[myid]/N;
 
     myboard = board_initialize(myrows, N);
 	myboard_new = board_initialize(myrows, N);
@@ -164,9 +179,15 @@ int main(int argc, char** argv)
 
     auto start_time = std::chrono::high_resolution_clock::now();
     // scatter initial matrix
-	MPI_Scatter(boardptr, myrows * N, MPI_DOUBLE, 
-				*myboard, myrows * N, MPI_DOUBLE, 
+	MPI_Scatterv(boardptr, counts, displacements, MPI_DOUBLE, 
+				*myboard, counts[myid], MPI_DOUBLE, 
 				0, MPI_COMM_WORLD);
+
+    // printf("Scatter is ok for proc %d\n", myid);
+    // board_print(myboard, myrows, N);
+
+    double wh = 1.0 + (double)((w/h)*(w/h));
+    double hw = 1.0 + (double)((w/h)*(w/h));
 
     // do the calculation
 	while (iters < MAXITERS)
@@ -202,19 +223,19 @@ int main(int argc, char** argv)
             for (j = 1; j < (N-1); j++){
                 //myrows == 1
                 if(myrows == 1 && myid > 0 && myid < (procs - 1)){
-                    temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myrow_bot[j] + myrow_top[j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 //myrows != 1 prva vrstica, ce je myid==0 prva vrstica ni pomembna
                 }else if(myrows != 1 && i == 0 && myid != 0){
-                    temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myboard[i+1][j] + myrow_top[j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 //myrows != 1 zadnja vrstica, ce je myid==(procs-1) tadnja vrstica ni pomembna
                 }else if(myrows != 1 && i == (myrows - 1) && myid != (procs-1)){
-                    temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myrow_bot[j] + myboard[i-1][j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 //myrows != 1 vmesne vrstice
                 }else if(myrows != 1 && i > 0 && i < (myrows - 1)){
-                    temperature = 0.5 * ((myboard[i+1][j] + myboard[i-1][j])/(1.0 + (double)((w/h)*(w/h))) + (myboard[i][j-1] + myboard[i][j+1])/(1.0 + (double)((h/w)*(h/w))));
+                    temperature = 0.5 * ((myboard[i+1][j] + myboard[i-1][j])/wh + (myboard[i][j-1] + myboard[i][j+1])/hw);
                     myboard_new[i][j] = temperature;
                 }
             }
@@ -223,19 +244,13 @@ int main(int argc, char** argv)
         
 		board_update(&myboard, &myboard_new);
 	}
-    MPI_Barrier(MPI_COMM_WORLD);
-	
-	// gather results
-	MPI_Gather(*myboard, myrows * N, MPI_DOUBLE, 
-			   boardptr, myrows * N, MPI_DOUBLE, 
-			   0, MPI_COMM_WORLD);
-	// data to send, send data size, data type,
-	// gathered data, recevied data size, data type,
-	// gathering process, communicator
+
+    MPI_Gatherv(*myboard, counts[myid], MPI_DOUBLE, boardptr,
+                counts, displacements, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 	// display
 	if (myid == 0) {
-        // board_print(board, M, N);
+        board_print(board, M, N);
         auto end_time = std::chrono::high_resolution_clock::now();
         auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         std::cout << "Execution time: " << runningTime << " ms." << std::endl;
