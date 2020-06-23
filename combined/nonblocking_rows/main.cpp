@@ -7,7 +7,7 @@
 #include <chrono>
 #include <omp.h>
 
-#define MAXITERS 20000
+#define MAXITERS 300
 
 void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w, int * tile_h) {
     // Defaults
