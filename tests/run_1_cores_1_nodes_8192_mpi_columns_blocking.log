@@ -1,0 +1,8 @@
+MPI Columns Blocking. Execution time: 227317 ms.
+MPI Columns Blocking. Execution time: 249977 ms.
+MPI Columns Blocking. Execution time: 249000 ms.
+MPI Columns Blocking. Execution time: 249340 ms.
+MPI Columns Blocking. Execution time: 249254 ms.
+MPI Columns Blocking. Execution time: 260684 ms.
+MPI Columns Blocking. Execution time: 261200 ms.
+slurmstepd: error: *** JOB 898516 ON nsc-gsv002 CANCELLED AT 2020-06-24T20:33:21 DUE TO TIME LIMIT ***

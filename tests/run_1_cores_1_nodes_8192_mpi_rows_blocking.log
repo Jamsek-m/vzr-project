@@ -1,0 +1,7 @@
+MPI Rows Blocking. Execution time: 292090 ms.
+MPI Rows Blocking. Execution time: 289504 ms.
+MPI Rows Blocking. Execution time: 293561 ms.
+MPI Rows Blocking. Execution time: 292960 ms.
+MPI Rows Blocking. Execution time: 310274 ms.
+MPI Rows Blocking. Execution time: 292090 ms.
+slurmstepd: error: *** JOB 898519 ON nsc-gsv002 CANCELLED AT 2020-06-24T20:35:21 DUE TO TIME LIMIT ***
