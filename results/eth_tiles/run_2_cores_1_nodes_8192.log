@@ -1,0 +1,7 @@
+MPI Tiles Blocking. Execution time: 277659 ms.
+MPI Tiles Blocking. Execution time: 275017 ms.
+MPI Tiles Blocking. Execution time: 267434 ms.
+MPI Tiles Blocking. Execution time: 252818 ms.
+MPI Tiles Blocking. Execution time: 253387 ms.
+MPI Tiles Blocking. Execution time: 253473 ms.
+slurmstepd: error: *** JOB 898466 ON nsc-gsv002 CANCELLED AT 2020-06-24T19:18:20 DUE TO TIME LIMIT ***

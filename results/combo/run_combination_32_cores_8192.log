@@ -1,0 +1,10 @@
+Execution time: 193973 ms.
+Execution time: 193943 ms.
+Execution time: 193943 ms.
+Execution time: 193658 ms.
+Execution time: 193945 ms.
+Execution time: 193812 ms.
+Execution time: 194003 ms.
+Execution time: 193373 ms.
+Execution time: 193633 ms.
+slurmstepd: error: *** JOB 898586 ON nsc-gsv002 CANCELLED AT 2020-06-24T21:29:51 DUE TO TIME LIMIT ***

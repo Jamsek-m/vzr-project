@@ -1,0 +1,21 @@
+MPI Rows Blocking. Execution time: 35051 ms.
+MPI Rows Blocking. Execution time: 33237 ms.
+MPI Rows Blocking. Execution time: 33256 ms.
+MPI Rows Blocking. Execution time: 33985 ms.
+MPI Rows Blocking. Execution time: 31604 ms.
+MPI Rows Blocking. Execution time: 31506 ms.
+--------------------------------------------------------------------------
+A system call failed during shared memory initialization that should
+not have.  It is likely that your MPI job will now either abort or
+experience performance degradation.
+
+  Local host:  nsc-gsv002.ijs.si
+  System call: open(2) 
+  Error:       Permission denied (errno 13)
+--------------------------------------------------------------------------
+[nsc-gsv002.ijs.si:48225] 3 more processes have sent help message help-opal-shmem-mmap.txt / sys call fail
+[nsc-gsv002.ijs.si:48225] Set MCA parameter "orte_base_help_aggregate" to 0 to see all help / error messages
+MPI Rows Blocking. Execution time: 31397 ms.
+MPI Rows Blocking. Execution time: 32674 ms.
+MPI Rows Blocking. Execution time: 34254 ms.
+MPI Rows Blocking. Execution time: 32283 ms.

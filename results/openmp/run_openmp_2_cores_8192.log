@@ -1,0 +1,4 @@
+Execution time: 1046.4 s.
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+slurmstepd: error: *** STEP 898537.1 ON nsc-gsv002 CANCELLED AT 2020-06-24T20:55:51 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 898537 ON nsc-gsv002 CANCELLED AT 2020-06-24T20:55:51 DUE TO TIME LIMIT ***

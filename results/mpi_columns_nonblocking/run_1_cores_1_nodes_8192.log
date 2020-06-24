@@ -1,0 +1,8 @@
+MPI Columns Nonblocking. Execution time: 232202 ms.
+MPI Columns Nonblocking. Execution time: 248368 ms.
+MPI Columns Nonblocking. Execution time: 247917 ms.
+MPI Columns Nonblocking. Execution time: 248635 ms.
+MPI Columns Nonblocking. Execution time: 248168 ms.
+MPI Columns Nonblocking. Execution time: 260941 ms.
+MPI Columns Nonblocking. Execution time: 259798 ms.
+slurmstepd: error: *** JOB 898517 ON nsc-gsv002 CANCELLED AT 2020-06-24T20:33:51 DUE TO TIME LIMIT ***

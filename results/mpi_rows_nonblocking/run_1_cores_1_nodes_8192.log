@@ -1,0 +1,7 @@
+MPI Rows Nonblocking. Execution time: 292589 ms.
+MPI Rows Nonblocking. Execution time: 285636 ms.
+MPI Rows Nonblocking. Execution time: 286335 ms.
+MPI Rows Nonblocking. Execution time: 293809 ms.
+MPI Rows Nonblocking. Execution time: 339692 ms.
+MPI Rows Nonblocking. Execution time: 284638 ms.
+slurmstepd: error: *** JOB 898520 ON nsc-gsv002 CANCELLED AT 2020-06-24T20:35:21 DUE TO TIME LIMIT ***
