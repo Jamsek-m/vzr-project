@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <chrono>
 
-#define MAXITERS 100
+#define MAXITERS 300
 
 void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w, int * tile_h) {
     // Defaults
@@ -174,8 +174,8 @@ int main(int argc, char** argv)
         boardptr = *board;
 
         borders_initialize(board, H, W);
-        board_print(board, H, W);
-        printf("\nW: %d, H: %d, w: %d, h: %d, M: %d, N: %d, procs: %d\n", W,H,w,h,M,N,procs);
+        // board_print(board, H, W);
+        // printf("\nW: %d, H: %d, w: %d, h: %d, M: %d, N: %d, procs: %d\n", W,H,w,h,M,N,procs);
     }
 
     myboard = board_initialize(h, w);
@@ -311,8 +311,8 @@ int main(int argc, char** argv)
     
 	// display
 	if (myid == 0) {
-        printf("print board\n");
-        board_print(board, H, W);
+        // printf("print board\n");
+        // board_print(board, H, W);
         auto end_time = std::chrono::high_resolution_clock::now();
         auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         std::cout << "Execution time: " << runningTime << " ms." << std::endl;
