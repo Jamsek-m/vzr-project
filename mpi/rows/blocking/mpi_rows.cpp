@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <chrono>
 
-#define MAXITERS 20000
+#define MAXITERS 300
 
 void initArgs(int argc, char ** argv, int * table_w, int * table_h, int * tile_w, int * tile_h) {
     // Defaults
@@ -131,12 +131,12 @@ int main(int argc, char** argv)
         boardptr = *board;
 
         borders_initialize(board, M, N);
-        board_print(board, M, N);
+        // board_print(board, M, N);
     }
 
     // divide work
-	mystart = M / procs * myid;				// determine scope of work for each process; process 0 also works on its own part
-	myend = M / procs * (myid + 1);
+    mystart = M / procs * myid;				// determine scope of work for each process; process 0 also works on its own part
+    myend = M / procs * (myid + 1);
     myrows = M / procs;
 
     int counts[procs];
@@ -155,9 +155,9 @@ int main(int argc, char** argv)
     myrows = counts[myid]/N;
 
     myboard = board_initialize(myrows, N);
-	myboard_new = board_initialize(myrows, N);
+    myboard_new = board_initialize(myrows, N);
     myrow_top = (double*)malloc(N * sizeof(double));
-	myrow_bot = (double*)malloc(N * sizeof(double));
+    myrow_bot = (double*)malloc(N * sizeof(double));
     
 
     // myboard_new proces 0 prva vrstica 0.0
@@ -250,7 +250,7 @@ int main(int argc, char** argv)
 
 	// display
 	if (myid == 0) {
-        board_print(board, M, N);
+        // board_print(board, M, N);
         auto end_time = std::chrono::high_resolution_clock::now();
         auto runningTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         std::cout << "Execution time: " << runningTime << " ms." << std::endl;
